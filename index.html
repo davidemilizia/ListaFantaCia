@@ -124,11 +124,11 @@
 
 <div class="actions">
   <div class="search-box">
-    <input type="text" id="inputRicerca" onkeyup="filtraTabella()" placeholder="🔍 Cerca giocatore in tabella...">
+    <input type="text" id="inputRicerca" onkeyup="filtraTabella()" placeholder="🔍 Cerca giocatore o squadra...">
   </div>
   <div class="buttons-group">
-    <button onclick="salvaDati()">💾 Salva</button>
-    <button class="secondary" onclick="aggiungiRiga()">➕ Aggiungi</button>
+    <button onclick="salvaDati(true)">💾 Salva</button>
+    <button class="secondary" onclick="aggiungiRigaPreset()">➕ Aggiungi</button>
     <button class="secondary" onclick="esportaJson()">📥 Esporta</button>
   </div>
 </div>
@@ -146,7 +146,7 @@
     </tr>
   </thead>
   <tbody>
-    <!-- Le righe verranno caricate qui -->
+    <!-- Le righe verranno generate qui -->
   </tbody>
 </table>
 
@@ -202,27 +202,62 @@
   }
 
   function caricaTabella() {
-    const salvato = localStorage.getItem('fantacalcio_asta');
+    const salvato = localStorage.getItem('fantacalcio_asta_dati');
     const tbody = document.querySelector('#tabellaGiocatori tbody');
-    tbody.innerHTML = ""; // Pulisci prima di ricaricare
+    tbody.innerHTML = "";
 
     if (salvato) {
-      tbody.innerHTML = salvato;
-      ricollegaEventi(); // Riattacca gli eventi di input/cambio dopo aver ricaricato l'HTML
+      try {
+        const righeSalvate = JSON.parse(salvato);
+        if (righeSalvate.length > 0) {
+          righeSalvate.forEach(r => {
+            creaRigaHtml(r.giocatore, r.ruolo, r.squadra, r.fascia, r.maxCrediti, r.minCrediti);
+          });
+        } else {
+          aggiungiRigaPreset();
+        }
+      } catch (e) {
+        aggiungiRigaPreset();
+      }
     } else {
-      aggiungiRiga("MARTINEZ", "A", "Internazionale", "1", "120", "100");
+      aggiungiRigaPreset();
     }
   }
 
-  function salvaDati() {
-    const tbody = document.querySelector('#tabellaGiocatori tbody').innerHTML;
-    localStorage.setItem('fantacalcio_asta', tbody);
-    const msg = document.getElementById('messaggio');
-    msg.innerText = "Modifiche salvate con successo!";
-    setTimeout(() => { msg.innerText = ""; }, 3000);
+  function salvaDati(mostraMessaggio = false) {
+    const righe = document.querySelectorAll('#tabellaGiocatori tbody tr');
+    const datiDaSalvare = [];
+
+    righe.forEach(r => {
+      const selectGiocatore = r.querySelector('.select-giocatore');
+      const selectFascia = r.querySelector('.select-fascia');
+      const cols = r.querySelectorAll('td');
+
+      datiDaSalvare.push({
+        giocatore: selectGiocatore ? selectGiocatore.value : "",
+        ruolo: cols[1].innerText.trim(),
+        squadra: cols[2].innerText.trim(),
+        fascia: selectFascia ? selectFascia.value : "1",
+        maxCrediti: cols[4].innerText.trim(),
+        minCrediti: cols[5].innerText.trim()
+      });
+    });
+
+    localStorage.setItem('fantacalcio_asta_dati', JSON.stringify(datiDaSalvare));
+
+    if (mostraMessaggio) {
+      const msg = document.getElementById('messaggio');
+      msg.innerText = "Modifiche salvate con successo!";
+      setTimeout(() => { msg.innerText = ""; }, 3000);
+    }
   }
 
-  function aggiungiRiga(nomeSelezionato = "", ruolo = "", squadra = "", fascia = "1", max = "10", min = "1") {
+  function aggiungiRigaPreset() {
+    creaRigaHtml("", "", "", "1", "10", "1");
+    salvaDati();
+  }
+
+  function creaRigaHtml(nomeSelezionato = "", ruolo = "", squadra = "", fascia = "1", max = "10", min = "1") {
     const tbody = document.querySelector('#tabellaGiocatori tbody');
     const nuovaRiga = document.createElement('tr');
     
@@ -234,27 +269,25 @@
 
     nuovaRiga.innerHTML = `
       <td>
-        <select class="select-giocatore">
+        <select class="select-giocatore" onchange="aggiornaDatiGiocatore(this)">
           ${optionsHtml}
         </select>
       </td>
-      <td contenteditable="true" class="center ruolo-cell">${ruolo}</td>
-      <td contenteditable="true" class="squadra-cell">${squadra}</td>
+      <td contenteditable="true" class="center ruolo-cell" oninput="salvaDati()">${ruolo}</td>
+      <td contenteditable="true" class="squadra-cell" oninput="salvaDati()">${squadra}</td>
       <td class="center">
-        <select class="select-fascia">
+        <select class="select-fascia" onchange="salvaDati()">
           <option value="1" ${fascia === "1" ? "selected" : ""}>1</option>
           <option value="2" ${fascia === "2" ? "selected" : ""}>2</option>
           <option value="3" ${fascia === "3" ? "selected" : ""}>3</option>
           <option value="4" ${fascia === "4" ? "selected" : ""}>4</option>
         </select>
       </td>
-      <td contenteditable="true" class="right val-max">${max}</td>
-      <td contenteditable="true" class="right val-min">${min}</td>
+      <td contenteditable="true" class="right" oninput="salvaDati()">${max}</td>
+      <td contenteditable="true" class="right" oninput="salvaDati()">${min}</td>
       <td class="center"><button style="padding: 5px 10px; background-color: #c62828;" onclick="rimuoviRiga(this)">Elimina</button></td>
     `;
     tbody.appendChild(nuovaRiga);
-    ricollegaEventi();
-    salvaDati();
   }
 
   function rimuoviRiga(bottone) {
@@ -278,32 +311,19 @@
     salvaDati();
   }
 
-  function ricollegaEventi() {
-    // Gestione cambio select giocatore
-    document.querySelectorAll('.select-giocatore').forEach(sel => {
-      sel.onchange = function() { aggiornaDatiGiocatore(this); };
-    });
-    // Gestione cambio fascia
-    document.querySelectorAll('.select-fascia').forEach(sel => {
-      sel.onchange = function() { salvaDati(); };
-    });
-    // Gestione modifiche testo celle (crediti, ruoli, squadre)
-    document.querySelectorAll('[contenteditable="true"]').forEach(cell => {
-      cell.oninput = function() { salvaDati(); };
-    });
-  }
-
   function filtraTabella() {
     const filtro = document.getElementById('inputRicerca').value.toUpperCase();
     const righe = document.querySelectorAll('#tabellaGiocatori tbody tr');
 
     righe.forEach(riga => {
       const selectGiocatore = riga.querySelector('.select-giocatore');
-      const nomeValore = selectGiocatore ? selectGiocatore.value.toUpperCase() : "";
+      // Cerca sia nel nome selezionato che nel testo completo delle opzioni o nelle celle squadra/ruolo
+      const nomeSelezionato = selectGiocatore ? selectGiocatore.value.toUpperCase() : "";
+      const testoOpzione = selectGiocatore && selectGiocatore.selectedIndex > 0 ? selectGiocatore.options[selectGiocatore.selectedIndex].text.toUpperCase() : "";
       const squadra = riga.querySelector('.squadra-cell').innerText.toUpperCase();
       const ruolo = riga.querySelector('.ruolo-cell').innerText.toUpperCase();
 
-      if (nomeValore.includes(filtro) || squadra.includes(filtro) || ruolo.includes(filtro)) {
+      if (nomeSelezionato.includes(filtro) || testoOpzione.includes(filtro) || squadra.includes(filtro) || ruolo.includes(filtro)) {
         riga.style.display = "";
       } else {
         riga.style.display = "none";
@@ -317,7 +337,7 @@
     righe.forEach(r => {
       const selectGiocatore = r.querySelector('.select-giocatore');
       const selectFascia = r.querySelector('.select-fascia');
-      const cols = r.querySelectorAll 'td';
+      const cols = r.querySelectorAll('td');
       dati.push({
         giocatore: selectGiocatore ? selectGiocatore.value : "",
         ruolo: cols[1].innerText.trim(),
