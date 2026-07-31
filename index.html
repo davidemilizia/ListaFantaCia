@@ -153,6 +153,41 @@
 <div id="messaggio"></div>
 
 <script>
+  // Dati incorporati direttamente per evitare problemi di caricamento locale (CORS)
+  const datiListoneGrezzo = {
+    "portieri": [
+      { "nome": "AUDERO", "squadra": "Como", "costo": 1 },
+      { "nome": "BIJLOW", "squadra": "Genoa", "costo": 20 },
+      { "nome": "MERET", "squadra": "Napoli", "costo": 15 },
+      { "nome": "SOMMER", "squadra": "Internazionale", "costo": 25 }
+    ],
+    "difensori": [
+      { "nome": "BASTONI", "squadra": "Internazionale", "costo": 18 },
+      { "nome": "BREMER", "squadra": "Juventus", "costo": 20 },
+      { "nome": "DIMARCO", "squadra": "Internazionale", "costo": 22 },
+      { "nome": "THEO HERNANDEZ", "squadra": "Milan", "costo": 25 }
+    ],
+    "centrocampisti": [
+      { "nome": "BARELLA", "squadra": "Internazionale", "costo": 20 },
+      { "nome": "CALHANOGLU", "squadra": "Internazionale", "costo": 30 },
+      { "nome": "PULISIC", "squadra": "Milan", "costo": 28 },
+      { "nome": "ZACCAGNI", "squadra": "Lazio", "costo": 22 }
+    ],
+    "attaccanti": [
+      { "nome": "DOVBYK", "squadra": "Roma", "costo": 35 },
+      { "nome": "GUDMUNDSSON", "squadra": "Fiorentina", "costo": 30 },
+      { "nome": "KEAN", "squadra": "Fiorentina", "costo": 18 },
+      { "nome": "LAUTARO", "squadra": "Internazionale", "costo": 70 },
+      { "nome": "RETEGUI", "squadra": "Atalanta", "costo": 40 },
+      { "nome": "VLAHOVIC", "squadra": "Juventus", "costo": 55 }
+    ],
+    "allenatori": [
+      { "nome": "CONTE", "squadra": "Napoli", "costo": 10 },
+      { "nome": "GASPERINI", "squadra": "Atalanta", "costo": 10 },
+      { "nome": "INZAGHI", "squadra": "Internazionale", "costo": 12 }
+    ]
+  };
+
   let dbGiocatori = {};
   let listaNomiGiocatori = [];
 
@@ -182,23 +217,15 @@
   }
 
   window.onload = function() {
-    fetch('listone.json')
-      .then(response => response.json())
-      .then(data => {
-        let dataProcessata = processaValutazioni(data);
-        dataProcessata.sort((a, b) => a.nome.localeCompare(b.nome));
-        listaNomiGiocatori = dataProcessata;
+    let dataProcessata = processaValutazioni(datiListoneGrezzo);
+    dataProcessata.sort((a, b) => a.nome.localeCompare(b.nome));
+    listaNomiGiocatori = dataProcessata;
 
-        listaNomiGiocatori.forEach(g => {
-          dbGiocatori[g.nome.trim()] = { ruolo: g.ruolo, squadra: g.squadra };
-        });
+    listaNomiGiocatori.forEach(g => {
+      dbGiocatori[g.nome.trim()] = { ruolo: g.ruolo, squadra: g.squadra };
+    });
 
-        caricaTabella();
-      })
-      .catch(error => {
-        console.error("Errore nel caricamento del listone:", error);
-        caricaTabella();
-      });
+    caricaTabella();
   }
 
   function caricaTabella() {
@@ -303,7 +330,7 @@
 
     if (dbGiocatori[nomeScelto]) {
       cellaRuolo.innerText = dbGiocatori[nomeScelto].ruolo;
-      cellaSquadra.innerText = dbGiocatori[nomeScelto].squadra;
+      cellaSquadra.innerText = dbGiocatori[nomeStrumento = nomeScelto] ? dbGiocatori[nomeScelto].squadra : "";
     } else {
       cellaRuolo.innerText = "";
       cellaSquadra.innerText = "";
@@ -317,13 +344,12 @@
 
     righe.forEach(riga => {
       const selectGiocatore = riga.querySelector('.select-giocatore');
-      // Cerca sia nel nome selezionato che nel testo completo delle opzioni o nelle celle squadra/ruolo
-      const nomeSelezionato = selectGiocatore ? selectGiocatore.value.toUpperCase() : "";
+      const nomeValore = selectGiocatore ? selectGiocatore.value.toUpperCase() : "";
       const testoOpzione = selectGiocatore && selectGiocatore.selectedIndex > 0 ? selectGiocatore.options[selectGiocatore.selectedIndex].text.toUpperCase() : "";
       const squadra = riga.querySelector('.squadra-cell').innerText.toUpperCase();
       const ruolo = riga.querySelector('.ruolo-cell').innerText.toUpperCase();
 
-      if (nomeSelezionato.includes(filtro) || testoOpzione.includes(filtro) || squadra.includes(filtro) || ruolo.includes(filtro)) {
+      if (nomeValore.includes(filtro) || testoOpzione.includes(filtro) || squadra.includes(filtro) || ruolo.includes(filtro)) {
         riga.style.display = "";
       } else {
         riga.style.display = "none";
