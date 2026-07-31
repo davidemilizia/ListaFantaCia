@@ -18,8 +18,27 @@
     text-align: center;
   }
   .actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     margin-bottom: 20px;
-    text-align: right;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .search-box {
+    flex: 1;
+    min-width: 250px;
+  }
+  .search-box input {
+    width: 100%;
+    padding: 10px;
+    font-size: 14px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+  }
+  .buttons-group {
+    display: flex;
+    gap: 10px;
   }
   button {
     background-color: #2e7d32;
@@ -29,7 +48,6 @@
     font-size: 14px;
     border-radius: 6px;
     cursor: pointer;
-    margin-left: 10px;
     font-weight: bold;
   }
   button:hover {
@@ -105,9 +123,14 @@
 <h1>🎯 Lista Obiettivi Asta Fantacalcio</h1>
 
 <div class="actions">
-  <button onclick="salvaDati()">💾 Salva Modifiche</button>
-  <button class="secondary" onclick="aggiungiRiga()">➕ Aggiungi Giocatore</button>
-  <button class="secondary" onclick="esportaJson()">📥 Esporta JSON</button>
+  <div class="search-box">
+    <input type="text" id="inputRicerca" onkeyup="filtraTabella()" placeholder="🔍 Cerca giocatore o squadra in tabella...">
+  </div>
+  <div class="buttons-group">
+    <button onclick="salvaDati()">💾 Salva</button>
+    <button class="secondary" onclick="aggiungiRiga()">➕ Aggiungi</button>
+    <button class="secondary" onclick="esportaJson()">📥 Esporta</button>
+  </div>
 </div>
 
 <table id="tabellaGiocatori">
@@ -133,15 +156,8 @@
   let dbGiocatori = {};
   let listaNomiGiocatori = [];
 
-  // Dati strutturati correttamente con i ruoli associati
-  const listoneGrezzo = [
-    // Inserisci qui l'oggetto JSON completo o caricalo via fetch se separi i file
-  ];
-
-  // Funzione di utilità per normalizzare e appiattire il listone suddiviso per reparti
   function processaValutazioni(data) {
     let arrayPiatto = [];
-    
     const mappatura = {
       "portieri": "P",
       "difensori": "D",
@@ -153,13 +169,12 @@
     for (let reparto in mappatura) {
       if (data[reparto]) {
         data[reparto].forEach(g => {
-          let giocatoreObj = {
+          arrayPiatto.push({
             nome: g.nome,
             squadra: g.squadra,
             ruolo: mappatura[reparto],
             costo: g.costo
-          };
-          arrayPiatto.push(giocatoreObj);
+          });
         });
       }
     }
@@ -167,7 +182,6 @@
   }
 
   window.onload = function() {
-    // Se usi un file esterno 'listone.json' con la struttura a categorie:
     fetch('listone.json')
       .then(response => response.json())
       .then(data => {
@@ -183,8 +197,6 @@
       })
       .catch(error => {
         console.error("Errore nel caricamento del listone:", error);
-        document.getElementById('messaggio').style.color = "red";
-        document.getElementById('messaggio').innerText = "Impossibile caricare il file listone.json!";
         caricaTabella();
       });
   }
@@ -203,7 +215,6 @@
     const tbody = document.querySelector('#tabellaGiocatori tbody').innerHTML;
     localStorage.setItem('fantacalcio_asta', tbody);
     const msg = document.getElementById('messaggio');
-    msg.style.color = "#2e7d32";
     msg.innerText = "Modifiche salvate con successo!";
     setTimeout(() => { msg.innerText = ""; }, 3000);
   }
@@ -242,8 +253,7 @@
   }
 
   function rimuoviRiga(bottone) {
-    const riga = bottone.closest('tr');
-    riga.remove();
+    bottone.closest('tr').remove();
     salvaDati();
   }
 
@@ -263,9 +273,27 @@
   }
 
   function attivaEventiSelect() {
-    const selects = document.querySelectorAll('.select-giocatore');
-    selects.forEach(sel => {
+    document.querySelectorAll('.select-giocatore').forEach(sel => {
       sel.onchange = function() { aggiornaDatiGiocatore(this); };
+    });
+  }
+
+  // Funzione di ricerca in tempo reale nella tabella
+  function filtraTabella() {
+    const filtro = document.getElementById('inputRicerca').value.toUpperCase();
+    const righe = document.querySelectorAll('#tabellaGiocatori tbody tr');
+
+    righe.forEach(riga => {
+      const selectGiocatore = riga.querySelector('.select-giocatore');
+      const nomeSelezionato = selectGiocatore ? selectGiocatore.options[selectGiocatore.selectedIndex].text.toUpperCase() : "";
+      const squadra = riga.querySelector('.squadra-cell').innerText.toUpperCase();
+      const ruolo = riga.querySelector('.ruolo-cell').innerText.toUpperCase();
+
+      if (nomeSelezionato.includes(filtro) || squadra.includes(filtro) || ruolo.includes(filtro)) {
+        riga.style.display = "";
+      } else {
+        riga.style.display = "none";
+      }
     });
   }
 
