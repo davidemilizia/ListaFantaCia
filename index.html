@@ -2,53 +2,139 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Listone Fantacalcio</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .search-box {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .search-box input {
+            width: 100%;
+            max-width: 400px;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #007bff;
+            color: white;
+        }
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+        .no-result {
+            text-align: center;
+            color: #777;
+            padding: 20px;
+        }
+    </style>
 </head>
 <body>
 
-    <h1>Listone Calciatori</h1>
+    <div class="container">
+        <h1>Listone Fantacalcio</h1>
 
-    <table id="tabella-listone" border="1">
-        <thead>
-            <tr>
-                <th>Nome</th>
-                <th>Squadra</th>
-                <th>Costo</th>
-            </tr>
-        </thead>
-        <tbody id="corpo-tabella">
-            <!-- I dati verranno caricati qui dinamicamente -->
-        </tbody>
-    </table>
+        <!-- Barra di ricerca / filtro -->
+        <div class="search-box">
+            <input type="text" id="inputRicerca" placeholder="Cerca calciatore (es. me)..." onkeyup="filtraGiocatori()">
+        </div>
+
+        <!-- Tabella dei giocatori -->
+        <table id="tabella-listone">
+            <thead>
+                <tr>
+                    <th>Nome</th>
+                    <th>Squadra</th>
+                    <th>Costo</th>
+                </tr>
+            </thead>
+            <tbody id="corpo-tabella">
+                <!-- I dati verranno caricati dinamicamente qui via JS -->
+            </tbody>
+        </table>
+    </div>
 
     <script>
-        // Percorso relativo: funzionerà perfettamente su GitHub Pages perché 
-        // listone.json si trova nella stessa cartella di index.html
+        let listaGiocatori = [];
+
+        // Caricamento dei dati dal file listone.json tramite fetch
         fetch('listone.json')
             .then(response => {
                 if (!response.ok) {
-                    throw new Error('Errore nel recupero del file JSON');
+                    throw new Error('Errore nel caricamento del file JSON');
                 }
                 return response.json();
             })
             .then(data => {
-                const tbody = document.getElementById('corpo-tabella');
-                tbody.innerHTML = ''; 
-
-                // Itera su tutti i calciatori presenti nel JSON
-                data.forEach(giocatore => {
-                    const tr = document.createElement('tr');
-                    
-                    tr.innerHTML = `
-                        <td>${giocatore.nome}</td>
-                        <td>${giocatore.squadra}</td>
-                        <td>${giocatore.costo}</td>
-                    `;
-                    
-                    tbody.appendChild(tr);
-                });
+                listaGiocatori = data;
+                mostraGiocatori(listaGiocatori);
             })
-            .catch(error => console.error('Errore:', error));
+            .catch(error => {
+                console.error('Errore:', error);
+                document.getElementById('corpo-tabella').innerHTML = `<tr><td colspan="3" class="no-result">Errore nel caricamento del listone.</td></tr>`;
+            });
+
+        // Funzione per visualizzare i giocatori nella tabella
+        function mostraGiocatori(giocatori) {
+            const tbody = document.getElementById('corpo-tabella');
+            tbody.innerHTML = '';
+
+            if (giocatori.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="3" class="no-result">Nessun calciatore trovato</td></tr>`;
+                return;
+            }
+
+            giocatori.forEach(giocatore => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${giocatore.nome}</td>
+                    <td>${giocatore.squadra}</td>
+                    <td>${giocatore.costo}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Funzione di filtro in tempo reale sul nome
+        function filtraGiocatori() {
+            const testoFiltro = document.getElementById('inputRicerca').value.toLowerCase();
+            
+            const giocatoriFiltrati = listaGiocatori.filter(giocatore => {
+                return giocatore.nome.toLowerCase().includes(testoFiltro);
+            });
+
+            mostraGiocatori(giocatoriFiltrati);
+        }
     </script>
 
 </body>
