@@ -133,16 +133,49 @@
   let dbGiocatori = {};
   let listaNomiGiocatori = [];
 
-  // Al caricamento, scarica il listone da GitHub
+  // Dati strutturati correttamente con i ruoli associati
+  const listoneGrezzo = [
+    // Inserisci qui l'oggetto JSON completo o caricalo via fetch se separi i file
+  ];
+
+  // Funzione di utilità per normalizzare e appiattire il listone suddiviso per reparti
+  function processaValutazioni(data) {
+    let arrayPiatto = [];
+    
+    const mappatura = {
+      "portieri": "P",
+      "difensori": "D",
+      "centrocampisti": "C",
+      "attaccanti": "A",
+      "allenatori": "ALL"
+    };
+
+    for (let reparto in mappatura) {
+      if (data[reparto]) {
+        data[reparto].forEach(g => {
+          let giocatoreObj = {
+            nome: g.nome,
+            squadra: g.squadra,
+            ruolo: mappatura[reparto],
+            costo: g.costo
+          };
+          arrayPiatto.push(giocatoreObj);
+        });
+      }
+    }
+    return arrayPiatto;
+  }
+
   window.onload = function() {
+    // Se usi un file esterno 'listone.json' con la struttura a categorie:
     fetch('listone.json')
       .then(response => response.json())
       .then(data => {
-        // Ordina i giocatori in ordine alfabetico per nome
-        data.sort((a, b) => a.nome.localeCompare(b.nome));
-        listaNomiGiocatori = data;
+        let dataProcessata = processaValutazioni(data);
+        dataProcessata.sort((a, b) => a.nome.localeCompare(b.nome));
+        listaNomiGiocatori = dataProcessata;
 
-        data.forEach(g => {
+        listaNomiGiocatori.forEach(g => {
           dbGiocatori[g.nome.trim()] = { ruolo: g.ruolo, squadra: g.squadra };
         });
 
@@ -151,7 +184,7 @@
       .catch(error => {
         console.error("Errore nel caricamento del listone:", error);
         document.getElementById('messaggio').style.color = "red";
-        document.getElementById('messaggio').innerText = "Impossibile caricare il file listone.json da GitHub!";
+        document.getElementById('messaggio').innerText = "Impossibile caricare il file listone.json!";
         caricaTabella();
       });
   }
@@ -160,10 +193,9 @@
     const salvato = localStorage.getItem('fantacalcio_asta');
     if (salvato) {
       document.querySelector('#tabellaGiocatori tbody').innerHTML = salvato;
-      // Ripristina gli eventi sui menu a tendina caricati dal localStorage
       attivaEventiSelect();
     } else {
-      aggiungiRiga("Lautaro Martinez", "A", "Inter", "1", "120", "100");
+      aggiungiRiga("MARTINEZ", "A", "Internazionale", "1", "120", "100");
     }
   }
 
@@ -180,7 +212,6 @@
     const tbody = document.querySelector('#tabellaGiocatori tbody');
     const nuovaRiga = document.createElement('tr');
     
-    // Costruisce le opzioni del menu a tendina con tutti i giocatori del listone
     let optionsHtml = '<option value="">-- Seleziona Giocatore --</option>';
     listaNomiGiocatori.forEach(g => {
       let selected = (g.nome === nomeSelezionato) ? 'selected' : '';
@@ -232,7 +263,6 @@
   }
 
   function attivaEventiSelect() {
-    // Utile se ricarica dal localStorage per riagganciare la logica se necessario
     const selects = document.querySelectorAll('.select-giocatore');
     selects.forEach(sel => {
       sel.onchange = function() { aggiornaDatiGiocatore(this); };
