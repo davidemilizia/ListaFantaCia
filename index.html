@@ -124,7 +124,7 @@
 
 <div class="actions">
   <div class="search-box">
-    <input type="text" id="inputRicerca" onkeyup="filtraTabella()" placeholder="🔍 Cerca giocatore o squadra in tabella...">
+    <input type="text" id="inputRicerca" onkeyup="filtraTabella()" placeholder="🔍 Cerca giocatore in tabella...">
   </div>
   <div class="buttons-group">
     <button onclick="salvaDati()">💾 Salva</button>
@@ -203,9 +203,12 @@
 
   function caricaTabella() {
     const salvato = localStorage.getItem('fantacalcio_asta');
+    const tbody = document.querySelector('#tabellaGiocatori tbody');
+    tbody.innerHTML = ""; // Pulisci prima di ricaricare
+
     if (salvato) {
-      document.querySelector('#tabellaGiocatori tbody').innerHTML = salvato;
-      attivaEventiSelect();
+      tbody.innerHTML = salvato;
+      ricollegaEventi(); // Riattacca gli eventi di input/cambio dopo aver ricaricato l'HTML
     } else {
       aggiungiRiga("MARTINEZ", "A", "Internazionale", "1", "120", "100");
     }
@@ -231,7 +234,7 @@
 
     nuovaRiga.innerHTML = `
       <td>
-        <select class="select-giocatore" onchange="aggiornaDatiGiocatore(this)">
+        <select class="select-giocatore">
           ${optionsHtml}
         </select>
       </td>
@@ -245,11 +248,13 @@
           <option value="4" ${fascia === "4" ? "selected" : ""}>4</option>
         </select>
       </td>
-      <td contenteditable="true" class="right">${max}</td>
-      <td contenteditable="true" class="right">${min}</td>
+      <td contenteditable="true" class="right val-max">${max}</td>
+      <td contenteditable="true" class="right val-min">${min}</td>
       <td class="center"><button style="padding: 5px 10px; background-color: #c62828;" onclick="rimuoviRiga(this)">Elimina</button></td>
     `;
     tbody.appendChild(nuovaRiga);
+    ricollegaEventi();
+    salvaDati();
   }
 
   function rimuoviRiga(bottone) {
@@ -270,26 +275,35 @@
       cellaRuolo.innerText = "";
       cellaSquadra.innerText = "";
     }
+    salvaDati();
   }
 
-  function attivaEventiSelect() {
+  function ricollegaEventi() {
+    // Gestione cambio select giocatore
     document.querySelectorAll('.select-giocatore').forEach(sel => {
       sel.onchange = function() { aggiornaDatiGiocatore(this); };
     });
+    // Gestione cambio fascia
+    document.querySelectorAll('.select-fascia').forEach(sel => {
+      sel.onchange = function() { salvaDati(); };
+    });
+    // Gestione modifiche testo celle (crediti, ruoli, squadre)
+    document.querySelectorAll('[contenteditable="true"]').forEach(cell => {
+      cell.oninput = function() { salvaDati(); };
+    });
   }
 
-  // Funzione di ricerca in tempo reale nella tabella
   function filtraTabella() {
     const filtro = document.getElementById('inputRicerca').value.toUpperCase();
     const righe = document.querySelectorAll('#tabellaGiocatori tbody tr');
 
     righe.forEach(riga => {
       const selectGiocatore = riga.querySelector('.select-giocatore');
-      const nomeSelezionato = selectGiocatore ? selectGiocatore.options[selectGiocatore.selectedIndex].text.toUpperCase() : "";
+      const nomeValore = selectGiocatore ? selectGiocatore.value.toUpperCase() : "";
       const squadra = riga.querySelector('.squadra-cell').innerText.toUpperCase();
       const ruolo = riga.querySelector('.ruolo-cell').innerText.toUpperCase();
 
-      if (nomeSelezionato.includes(filtro) || squadra.includes(filtro) || ruolo.includes(filtro)) {
+      if (nomeValore.includes(filtro) || squadra.includes(filtro) || ruolo.includes(filtro)) {
         riga.style.display = "";
       } else {
         riga.style.display = "none";
@@ -303,7 +317,7 @@
     righe.forEach(r => {
       const selectGiocatore = r.querySelector('.select-giocatore');
       const selectFascia = r.querySelector('.select-fascia');
-      const cols = r.querySelectorAll('td');
+      const cols = r.querySelectorAll 'td';
       dati.push({
         giocatore: selectGiocatore ? selectGiocatore.value : "",
         ruolo: cols[1].innerText.trim(),
