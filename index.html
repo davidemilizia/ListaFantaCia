@@ -96,7 +96,21 @@
                 return response.json();
             })
             .then(data => {
-                listaGiocatori = data;
+                // Gestisce sia il caso in cui il JSON sia un array diretto [...] 
+                // sia il caso in cui sia un oggetto che racchiude l'array
+                if (Array.isArray(data)) {
+                    listaGiocatori = data;
+                } else if (typeof data === 'object' && data !== null) {
+                    const chiaveArray = Object.keys(data).find(key => Array.isArray(data[key]));
+                    if (chiaveArray) {
+                        listaGiocatori = data[chiaveArray];
+                    } else {
+                        listaGiocatori = Object.values(data);
+                    }
+                } else {
+                    listaGiocatori = [];
+                }
+
                 mostraGiocatori(listaGiocatori);
             })
             .catch(error => {
@@ -109,7 +123,7 @@
             const tbody = document.getElementById('corpo-tabella');
             tbody.innerHTML = '';
 
-            if (giocatori.length === 0) {
+            if (!Array.isArray(giocatori) || giocatori.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="3" class="no-result">Nessun calciatore trovato</td></tr>`;
                 return;
             }
@@ -117,9 +131,9 @@
             giocatori.forEach(giocatore => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td>${giocatore.nome}</td>
-                    <td>${giocatore.squadra}</td>
-                    <td>${giocatore.costo}</td>
+                    <td>${giocatore.nome || ''}</td>
+                    <td>${giocatore.squadra || ''}</td>
+                    <td>${giocatore.costo || ''}</td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -129,8 +143,10 @@
         function filtraGiocatori() {
             const testoFiltro = document.getElementById('inputRicerca').value.toLowerCase();
             
+            if (!Array.isArray(listaGiocatori)) return;
+
             const giocatoriFiltrati = listaGiocatori.filter(giocatore => {
-                return giocatore.nome.toLowerCase().includes(testoFiltro);
+                return giocatore && giocatore.nome && giocatore.nome.toLowerCase().includes(testoFiltro);
             });
 
             mostraGiocatori(giocatoriFiltrati);
