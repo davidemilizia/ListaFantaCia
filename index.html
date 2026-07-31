@@ -124,8 +124,8 @@
 
 <div class="actions">
   <div class="search-box">
-    <!-- Usiamo sia oninput che onkeyup per essere sicuri che la ricerca parta subito scrivendo -->
-    <input type="text" id="inputRicerca" oninput="filtraTabella()" placeholder="🔍 Cerca giocatore o squadra (es. me)...">
+    <!-- Digitando qui, filtriamo i nomi dentro ai menù a tendina -->
+    <input type="text" id="inputRicerca" oninput="aggiornaFiltroTende()" placeholder="🔍 Filtra i giocatori nei menu (es. me)...">
   </div>
   <div class="buttons-group">
     <button onclick="salvaDati(true)">💾 Salva</button>
@@ -154,7 +154,6 @@
 <div id="messaggio"></div>
 
 <script>
-  // Listone completo integrato
   const datiListoneGrezzo = {
     "portieri": [
       { "nome": "AUDERO", "squadra": "Como", "costo": 1 },
@@ -293,6 +292,7 @@
     } else {
       aggiungiRigaPreset();
     }
+    aggiornaFiltroTende(); // Applica eventuale filtro attivo
   }
 
   function salvaDati(mostraMessaggio = false) {
@@ -332,16 +332,10 @@
     const tbody = document.querySelector('#tabellaGiocatori tbody');
     const nuovaRiga = document.createElement('tr');
     
-    let optionsHtml = '<option value="">-- Seleziona Giocatore --</option>';
-    listaNomiGiocatori.forEach(g => {
-      let selected = (g.nome === nomeSelezionato) ? 'selected' : '';
-      optionsHtml += `<option value="${g.nome}" ${selected}>${g.nome} (${g.squadra} - ${g.ruolo})</option>`;
-    });
-
     nuovaRiga.innerHTML = `
       <td>
         <select class="select-giocatore" onchange="aggiornaDatiGiocatore(this)">
-          ${optionsHtml}
+          <!-- Le opzioni verranno riempite dinamicamente dalla funzione di filtro -->
         </select>
       </td>
       <td contenteditable="true" class="center ruolo-cell" oninput="salvaDati()">${ruolo}</td>
@@ -359,6 +353,38 @@
       <td class="center"><button style="padding: 5px 10px; background-color: #c62828;" onclick="rimuoviRiga(this)">Elimina</button></td>
     `;
     tbody.appendChild(nuovaRiga);
+    
+    // Popola subito la tendina appena creata
+    popolaSelectSingola(nuovaRiga.querySelector('.select-giocatore'), nomeSelezionato);
+  }
+
+  function popolaSelectSingola(selectElement, valoreSelezionato) {
+    const filtro = document.getElementById('inputRicerca').value.toUpperCase();
+    let optionsHtml = '<option value="">-- Seleziona Giocatore --</option>';
+
+    listaNomiGiocatori.forEach(g => {
+      // Se c'è un filtro di ricerca, includiamo solo i nomi che lo contengono (ma manteniamo sempre selezionato quello già scelto nella riga)
+      const nomeMatch = g.nome.toUpperCase().includes(filtro);
+      const squadraMatch = g.squadra.toUpperCase().includes(filtro);
+      const eSelezionato = (g.nome === valoreSelezionato);
+
+      if (filtro === "" || nomeMatch || squadraMatch || eSelezionato) {
+        let selected = eSelezionato ? 'selected' : '';
+        optionsHtml += `<option value="${g.nome}" ${selected}>${g.nome} (${g.squadra} - ${g.ruolo})</option>`;
+      }
+    });
+
+    selectElement.innerHTML = optionsHtml;
+  }
+
+  function aggiornaFiltroTende() {
+    // Aggiorna tutte le tendine presenti nella tabella in base a ciò che si scrive nella ricerca
+    const righe = document.querySelectorAll('#tabellaGiocatori tbody tr');
+    righe.forEach(riga => {
+      const selectGiocatore = riga.querySelector('.select-giocatore');
+      const valoreCorrente = selectGiocatore ? selectGiocatore.value : "";
+      popolaSelectSingola(selectGiocatore, valoreCorrente);
+    });
   }
 
   function rimuoviRiga(bottone) {
@@ -380,26 +406,6 @@
       cellaSquadra.innerText = "";
     }
     salvaDati();
-  }
-
-  function filtraTabella() {
-    const filtro = document.getElementById('inputRicerca').value.toUpperCase();
-    const righe = document.querySelectorAll('#tabellaGiocatori tbody tr');
-
-    righe.forEach(riga => {
-      const selectGiocatore = riga.querySelector('.select-giocatore');
-      const nomeValore = selectGiocatore ? selectGiocatore.value.toUpperCase() : "";
-      // Controlla anche il testo visibile dell'opzione selezionata o dell'intera riga
-      const testoOpzione = selectGiocatore && selectGiocatore.selectedIndex > 0 ? selectGiocatore.options[selectGiocatore.selectedIndex].text.toUpperCase() : "";
-      const squadra = riga.querySelector('.squadra-cell').innerText.toUpperCase();
-      const ruolo = riga.querySelector('.ruolo-cell').innerText.toUpperCase();
-
-      if (filtro === "" || nomeValore.includes(filtro) || testoOpzione.includes(filtro) || squadra.includes(filtro) || ruolo.includes(filtro)) {
-        riga.style.display = "";
-      } else {
-        riga.style.display = "none";
-      }
-    });
   }
 
   function esportaJson() {
