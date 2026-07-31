@@ -61,9 +61,9 @@
     background-color: #37474f;
   }
 
-  /* --- CONTENITORE CON SCORRIMENTO (BLOCCA RIQUADRI) --- */
+  /* Contenitore con scorrimento (Blocca riquadri per l'intestazione) */
   .table-container {
-    max-height: 70vh; /* Altezza massima della tabella prima dello scroll */
+    max-height: 70vh;
     overflow-y: auto;
     border-radius: 8px;
     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
@@ -76,7 +76,6 @@
     background: white;
   }
 
-  /* --- INTESTAZIONE FISSA (STICKY) --- */
   th {
     position: sticky;
     top: 0;
@@ -87,7 +86,7 @@
     padding: 12px 15px;
     text-align: left;
     z-index: 10;
-    box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.15); /* Ombra per separare le righe durante lo scroll */
+    box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.15);
   }
 
   td {
@@ -144,14 +143,13 @@
     <input type="text" id="inputRicerca" oninput="aggiornaFiltroTende()" placeholder="🔍 Filtra i giocatori nei menu (es. stanko)...">
   </div>
   <div class="buttons-group">
-    <button onclick="salvaDati(true)">💾 Salva</button>
+    <button onclick="salvaDati(true)">💾 Salva Cloud</button>
     <button class="secondary" onclick="ordinaPerRuoloEFascia()">↕️ Ordina</button>
     <button class="secondary" onclick="aggiungiRigaPreset()">➕ Aggiungi</button>
     <button class="secondary" onclick="esportaJson()">📥 Esporta</button>
   </div>
 </div>
 
-<!-- Contenitore Tabella Blocca Riquadri -->
 <div class="table-container">
   <table id="tabellaGiocatori">
     <thead>
@@ -174,24 +172,27 @@
 <div id="messaggio"></div>
 
 <script>
+  // CONFIGURAZIONE JSONBIN.IO CLOUD
+  const BIN_ID = '6a6c99ebf5f4af5e29d9ec62';
+  const MASTER_KEY = '$2a$10$JzW.Y6TDuJ9ogAIsUNHduEI9d6Xn71X9QPfptrgh1/Zri49B9HOW';
+  const JSONBIN_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+
   let dbGiocatori = {};
   let listaNomiGiocatori = [];
 
   window.onload = function() {
+    mostraMessaggio("Caricamento listone in corso...", "#546e7a");
+
+    // 1. Carica il listone generale dei calciatori
     fetch('listone.json')
       .then(response => {
-        if (!response.ok) {
-          throw new Error('Impossibile reperire listone.json');
-        }
+        if (!response.ok) throw new Error('Impossibile reperire listone.json');
         return response.json();
       })
       .then(data => {
         listaNomiGiocatori = processaDataJson(data);
-
-        // Ordinamento alfabetico sicuro
         listaNomiGiocatori.sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
 
-        // Mappatura univoca dei calciatori (gestisce omonimi)
         listaNomiGiocatori.forEach((g, idx) => {
           if (g.nome) {
             const keyUnivoca = `${g.nome.trim()}|||${(g.squadra || '').trim()}|||${idx}`;
@@ -205,26 +206,19 @@
           }
         });
 
-        caricaTabella();
+        // 2. Carica i dati salvati dal Cloud (JSONBin)
+        caricaTabellaDaCloud();
       })
       .catch(error => {
         console.error('Errore:', error);
-        const msg = document.getElementById('messaggio');
-        if (msg) {
-          msg.style.color = '#c62828';
-          msg.innerText = "Attenzione: Impossibile caricare listone.json (" + error.message + ")";
-        }
+        mostraMessaggio("Attenzione: Impossibile caricare listone.json", "#c62828");
       });
   };
 
   function processaDataJson(data) {
     let arrayPiatto = [];
     const mappatura = {
-      "portieri": "P",
-      "difensori": "D",
-      "centrocampisti": "C",
-      "attaccanti": "A",
-      "allenatori": "ALL"
+      "portieri": "P", "difensori": "D", "centrocampisti": "C", "attaccanti": "A", "allenatori": "ALL"
     };
 
     if (Array.isArray(data)) {
@@ -252,33 +246,58 @@
     return arrayPiatto;
   }
 
-  function caricaTabella() {
-    const salvato = localStorage.getItem('fantacalcio_asta_dati');
-    const tbody = document.querySelector('#tabellaGiocatori tbody');
-    if (!tbody) return;
-    
-    tbody.innerHTML = "";
+  function caricaTabellaDaCloud() {
+    mostraMessaggio("Sincronizzazione col Cloud...", "#1b5e20");
 
-    if (salvato) {
-      try {
-        const righeSalvate = JSON.parse(salvato);
-        if (righeSalvate && righeSalvate.length > 0) {
-          righeSalvate.forEach(r => {
-            creaRigaHtml(r.giocatore, r.ruolo, r.squadra, r.fascia, r.maxCrediti, r.minCrediti);
-          });
-        } else {
+    fetch(`${JSONBIN_URL}/latest`, {
+      method: 'GET',
+      headers: {
+        'X-Master-Key': MASTER_KEY
+      }
+    })
+    .then(response => {
+      if (!response.ok) throw new Error("Errore recupero cloud");
+      return response.json();
+    })
+    .then(dataCloud => {
+      const righeCloud = dataCloud.record;
+      disegnaTabella(righeCloud);
+      mostraMessaggio("Dati caricati dal Cloud con successo!", "#2e7d32", 2500);
+    })
+    .catch(err => {
+      console.warn("Cloud non raggiungibile o vuoto. Recupero da salvataggio locale...", err);
+      const salvatoLocale = localStorage.getItem('fantacalcio_asta_dati');
+      if (salvatoLocale) {
+        try {
+          disegnaTabella(JSON.parse(salvatoLocale));
+          mostraMessaggio("Dati caricati dalla memoria locale", "#546e7a", 3000);
+        } catch (e) {
           aggiungiRigaPreset();
         }
-      } catch (e) {
+      } else {
         aggiungiRigaPreset();
       }
+    });
+  }
+
+  function disegnaTabella(righeData) {
+    const tbody = document.querySelector('#tabellaGiocatori tbody');
+    if (!tbody) return;
+    tbody.innerHTML = "";
+
+    if (Array.isArray(righeData) && righeData.length > 0) {
+      righeData.forEach(r => {
+        // Scarta l'eventuale riga segnaposto iniziale del setup
+        if (r.giocatore === "" && r.ruolo === "" && r.squadra === "" && righeData.length > 1) return;
+        creaRigaHtml(r.giocatore, r.ruolo, r.squadra, r.fascia, r.maxCrediti, r.minCrediti);
+      });
     } else {
       aggiungiRigaPreset();
     }
     aggiornaFiltroTende();
   }
 
-  function salvaDati(mostraMessaggio = false) {
+  function salvaDati(mostraAvviso = false) {
     const righe = document.querySelectorAll('#tabellaGiocatori tbody tr');
     const datiDaSalvare = [];
 
@@ -297,16 +316,28 @@
       });
     });
 
+    // 1. Salvataggio di sicurezza Locale
     localStorage.setItem('fantacalcio_asta_dati', JSON.stringify(datiDaSalvare));
 
-    if (mostraMessaggio) {
-      const msg = document.getElementById('messaggio');
-      if (msg) {
-        msg.style.color = '#2e7d32';
-        msg.innerText = "Modifiche salvate con successo!";
-        setTimeout(() => { msg.innerText = ""; }, 3000);
-      }
-    }
+    // 2. Salvataggio Cloud su JSONBin.io
+    if (mostraAvviso) mostraMessaggio("Salvataggio in Cloud...", "#1b5e20");
+
+    fetch(JSONBIN_URL, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Master-Key': MASTER_KEY
+      },
+      body: JSON.stringify(datiDaSalvare)
+    })
+    .then(res => {
+      if (!res.ok) throw new Error("Errore salvataggio Cloud");
+      if (mostraAvviso) mostraMessaggio("💾 Salvato in Cloud con successo!", "#2e7d32", 3000);
+    })
+    .catch(err => {
+      console.error(err);
+      if (mostraAvviso) mostraMessaggio("⚠️ Salvato solo in locale (Errore connessione Cloud)", "#c62828", 4000);
+    });
   }
 
   function ordinaPerRuoloEFascia() {
@@ -336,17 +367,14 @@
     };
 
     dati.sort((a, b) => {
-      // 1. Ordina per Ruolo (P -> D -> C -> A)
       const rA = prioritaRuolo[(a.ruolo || '').toUpperCase()] || 99;
       const rB = prioritaRuolo[(b.ruolo || '').toUpperCase()] || 99;
       if (rA !== rB) return rA - rB;
       
-      // 2. Ordina per Fascia (1 -> 2 -> 3 -> 4)
       const fA = parseInt(a.fascia) || 99;
       const fB = parseInt(b.fascia) || 99;
       if (fA !== fB) return fA - fB;
 
-      // 3. Ordina per Max Crediti (Decrescente)
       const maxA = parseFloat(a.maxCrediti) || 0;
       const maxB = parseFloat(b.maxCrediti) || 0;
       if (maxB !== maxA) return maxB - maxA;
@@ -354,28 +382,14 @@
       return (a.giocatore || '').localeCompare(b.giocatore || '');
     });
 
-    const tbody = document.querySelector('#tabellaGiocatori tbody');
-    if (!tbody) return;
-    tbody.innerHTML = "";
-
-    dati.forEach(r => {
-      creaRigaHtml(r.giocatore, r.ruolo, r.squadra, r.fascia, r.maxCrediti, r.minCrediti);
-    });
-
-    aggiornaFiltroTende();
-    salvaDati();
-
-    const msg = document.getElementById('messaggio');
-    if (msg) {
-      msg.style.color = '#2e7d32';
-      msg.innerText = "Tabella ordinata per Ruolo (P ➔ D ➔ C ➔ A) e Fascia!";
-      setTimeout(() => { msg.innerText = ""; }, 3000);
-    }
+    disegnaTabella(dati);
+    salvaDati(false);
+    mostraMessaggio("Tabella ordinata per Ruolo (P ➔ D ➔ C ➔ A) e Fascia!", "#2e7d32", 3000);
   }
 
   function aggiungiRigaPreset() {
     creaRigaHtml("", "", "", "1", "10", "1");
-    salvaDati();
+    salvaDati(false);
   }
 
   function creaRigaHtml(valoreSelezionato = "", ruolo = "", squadra = "", fascia = "1", max = "10", min = "1") {
@@ -389,18 +403,18 @@
         <select class="select-giocatore" onchange="aggiornaDatiGiocatore(this)">
         </select>
       </td>
-      <td contenteditable="true" class="center ruolo-cell" oninput="salvaDati()">${ruolo}</td>
-      <td contenteditable="true" class="squadra-cell" oninput="salvaDati()">${squadra}</td>
+      <td contenteditable="true" class="center ruolo-cell" oninput="salvaDati(false)">${ruolo}</td>
+      <td contenteditable="true" class="squadra-cell" oninput="salvaDati(false)">${squadra}</td>
       <td class="center">
-        <select class="select-fascia" onchange="salvaDati()">
+        <select class="select-fascia" onchange="salvaDati(false)">
           <option value="1" ${fascia === "1" ? "selected" : ""}>1</option>
           <option value="2" ${fascia === "2" ? "selected" : ""}>2</option>
           <option value="3" ${fascia === "3" ? "selected" : ""}>3</option>
           <option value="4" ${fascia === "4" ? "selected" : ""}>4</option>
         </select>
       </td>
-      <td contenteditable="true" class="right" oninput="salvaDati()">${max}</td>
-      <td contenteditable="true" class="right" oninput="salvaDati()">${min}</td>
+      <td contenteditable="true" class="right" oninput="salvaDati(false)">${max}</td>
+      <td contenteditable="true" class="right" oninput="salvaDati(false)">${min}</td>
       <td class="center"><button style="padding: 5px 10px; background-color: #c62828;" onclick="rimuoviRiga(this)">Elimina</button></td>
     `;
     tbody.appendChild(nuovaRiga);
@@ -451,7 +465,7 @@
 
   function rimuoviRiga(bottone) {
     bottone.closest('tr').remove();
-    salvaDati();
+    salvaDati(false);
   }
 
   function aggiornaDatiGiocatore(selectElement) {
@@ -464,7 +478,18 @@
       if (cellaRuolo) cellaRuolo.innerText = dbGiocatori[keyScelta].ruolo || "";
       if (cellaSquadra) cellaSquadra.innerText = dbGiocatori[keyScelta].squadra || "";
     }
-    salvaDati();
+    salvaDati(false);
+  }
+
+  function mostraMessaggio(testo, colore = '#2e7d32', durata = 0) {
+    const msg = document.getElementById('messaggio');
+    if (msg) {
+      msg.style.color = colore;
+      msg.innerText = testo;
+      if (durata > 0) {
+        setTimeout(() => { msg.innerText = ""; }, durata);
+      }
+    }
   }
 
   function esportaJson() {
