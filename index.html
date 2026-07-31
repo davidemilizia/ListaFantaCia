@@ -1,498 +1,55 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Lista Acquisti Fantacalcio</title>
-<style>
-  body {
-    font-family: Arial, sans-serif;
-    max-width: 1100px;
-    margin: 30px auto;
-    padding: 20px;
-    background-color: #f4f6f9;
-    color: #333;
-  }
-  h1 {
-    color: #1b5e20;
-    text-align: center;
-  }
-  .actions {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-    flex-wrap: wrap;
-    gap: 10px;
-  }
-  .search-box {
-    flex: 1;
-    min-width: 250px;
-  }
-  .search-box input {
-    width: 100%;
-    padding: 10px;
-    font-size: 14px;
-    border: 1px solid #ccc;
-    border-radius: 6px;
-  }
-  .buttons-group {
-    display: flex;
-    gap: 10px;
-  }
-  button {
-    background-color: #2e7d32;
-    color: white;
-    border: none;
-    padding: 10px 18px;
-    font-size: 14px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-weight: bold;
-  }
-  button:hover {
-    background-color: #1b5e20;
-  }
-  button.secondary {
-    background-color: #546e7a;
-  }
-  button.secondary:hover {
-    background-color: #37474f;
-  }
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    background: white;
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-  }
-  th, td {
-    padding: 12px 15px;
-    text-align: left;
-    border-bottom: 1px solid #e0e0e0;
-  }
-  th {
-    background-color: #2e7d32;
-    color: white;
-    text-transform: uppercase;
-    font-size: 13px;
-  }
-  tr:hover {
-    background-color: #f1f8e9;
-  }
-  select.select-giocatore {
-    width: 100%;
-    padding: 6px;
-    font-size: 14px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    background-color: white;
-    cursor: pointer;
-  }
-  select.select-fascia {
-    padding: 6px;
-    font-size: 14px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    background-color: white;
-    cursor: pointer;
-  }
-  [contenteditable="true"] {
-    background-color: #fffde7;
-    outline: 2px dashed #cddc39;
-    padding: 4px;
-    border-radius: 4px;
-  }
-  .center {
-    text-align: center;
-  }
-  .right {
-    text-align: right;
-  }
-  #messaggio {
-    text-align: center;
-    margin-top: 15px;
-    font-weight: bold;
-    color: #2e7d32;
-  }
-</style>
+    <meta charset="UTF-8">
+    <title>Listone Fantacalcio</title>
 </head>
 <body>
 
-<h1>🎯 Lista Obiettivi Asta Fantacalcio</h1>
+    <h1>Listone Calciatori</h1>
 
-<div class="actions">
-  <div class="search-box">
-    <input type="text" id="inputRicerca" oninput="aggiornaFiltroTende()" placeholder="🔍 Scrivi per filtrare i menù a tendina (es. me)...">
-  </div>
-  <div class="buttons-group">
-    <button onclick="salvaDati(true)">💾 Salva</button>
-    <button class="secondary" onclick="aggiungiRigaPreset()">➕ Aggiungi</button>
-    <button class="secondary" onclick="esportaJson()">📥 Esporta</button>
-  </div>
-</div>
+    <table id="tabella-listone" border="1">
+        <thead>
+            <tr>
+                <th>Nome</th>
+                <th>Squadra</th>
+                <th>Costo</th>
+            </tr>
+        </thead>
+        <tbody id="corpo-tabella">
+            <!-- I dati verranno caricati qui dinamicamente -->
+        </tbody>
+    </table>
 
-<table id="tabellaGiocatori">
-  <thead>
-    <tr>
-      <th>Calciatore</th>
-      <th class="center">Ruolo</th>
-      <th>Squadra</th>
-      <th class="center">Fascia</th>
-      <th class="right">Max Crediti</th>
-      <th class="right">Min Crediti</th>
-      <th class="center">Azioni</th>
-    </tr>
-  </thead>
-  <tbody>
-    <!-- Le righe verranno generate qui -->
-  </tbody>
-</table>
+    <script>
+        // Percorso relativo: funzionerà perfettamente su GitHub Pages perché 
+        // listone.json si trova nella stessa cartella di index.html
+        fetch('listone.json')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Errore nel recupero del file JSON');
+                }
+                return response.json();
+            })
+            .then(data => {
+                const tbody = document.getElementById('corpo-tabella');
+                tbody.innerHTML = ''; 
 
-<div id="messaggio"></div>
-
-<script>
-  // Listone completo e aggiornato con moltissimi giocatori
-  const datiListoneGrezzo = {
-    "portieri": [
-      { "nome": "AUDERO", "squadra": "Como", "costo": 1 },
-      { "nome": "BIJLOW", "squadra": "Genoa", "costo": 20 },
-      { "nome": "CAPRILE", "squadra": "Napoli", "costo": 5 },
-      { "nome": "CARNESECCHI", "squadra": "Atalanta", "costo": 15 },
-      { "nome": "DI GREGORIO", "squadra": "Juventus", "costo": 20 },
-      { "nome": "FALCONE", "squadra": "Lecce", "costo": 10 },
-      { "nome": "GOLINI", "squadra": "Napoli", "costo": 2 },
-      { "nome": "MAIGNAN", "squadra": "Milan", "costo": 22 },
-      { "nome": "MERET", "squadra": "Napoli", "costo": 15 },
-      { "nome": "MILINKOVIC-SAVIC V.", "squadra": "Torino", "costo": 12 },
-      { "nome": "MUSSO", "squadra": "Atalanta", "costo": 3 },
-      { "nome": "OKOYE", "squadra": "Udinese", "costo": 6 },
-      { "nome": "PERIN", "squadra": "Juventus", "costo": 4 },
-      { "nome": "PROVEDEL", "squadra": "Lazio", "costo": 14 },
-      { "nome": "SCOTTI", "squadra": "Milan", "costo": 1 },
-      { "nome": "SILVESTRI", "squadra": "Sampdoria", "costo": 5 },
-      { "nome": "SKORUPSKI", "squadra": "Bologna", "costo": 10 },
-      { "nome": "SOMMER", "squadra": "Internazionale", "costo": 25 },
-      { "nome": "SVILAR", "squadra": "Roma", "costo": 16 },
-      { "nome": "TERRACCIANO", "squadra": "Fiorentina", "costo": 4 },
-      { "nome": "TURATI", "squadra": "Monza", "costo": 8 },
-      { "nome": "VICARIO", "squadra": "Tottenham", "costo": 20 }
-    ],
-    "difensori": [
-      { "nome": "ACERBI", "squadra": "Internazionale", "costo": 10 },
-      { "nome": "ANGELINO", "squadra": "Roma", "costo": 12 },
-      { "nome": "BASTONI A.", "squadra": "Atalanta", "costo": 6 },
-      { "nome": "BASTONI S.", "squadra": "Internazionale", "costo": 18 },
-      { "nome": "BELLANOVA", "squadra": "Atalanta", "costo": 15 },
-      { "nome": "BIRAGHI", "squadra": "Fiorentina", "costo": 9 },
-      { "nome": "BREMER", "squadra": "Juventus", "costo": 20 },
-      { "nome": "BUONGIORNO", "squadra": "Napoli", "costo": 18 },
-      { "nome": "CALABRIA", "squadra": "Milan", "costo": 8 },
-      { "nome": "CALAFIOORI", "squadra": "Arsenal", "costo": 15 },
-      { "nome": "CAMBIASO", "squadra": "Juventus", "costo": 16 },
-      { "nome": "CASAALE", "squadra": "Bologna", "costo": 6 },
-      { "nome": "DANILO", "squadra": "Juventus", "costo": 11 },
-      { "nome": "DI LORENZO", "squadra": "Napoli", "costo": 18 },
-      { "nome": "DIMARCO", "squadra": "Internazionale", "costo": 22 },
-      { "nome": "DUMFRIES", "squadra": "Internazionale", "costo": 16 },
-      { "nome": "GATTI", "squadra": "Juventus", "costo": 10 },
-      { "nome": "GOSENS", "squadra": "Fiorentina", "costo": 14 },
-      { "nome": "HIEN", "squadra": "Atalanta", "costo": 9 },
-      { "nome": "KOLAŠINAC", "squadra": "Atalanta", "costo": 11 },
-      { "nome": "MANCINI", "squadra": "Roma", "costo": 10 },
-      { "nome": "PAVARD", "squadra": "Internazionale", "costo": 14 },
-      { "nome": "RRAHMANI", "squadra": "Napoli", "costo": 10 },
-      { "nome": "SMALLING", "squadra": "Roma", "costo": 7 },
-      { "nome": "SPINAZZOLA", "squadra": "Napoli", "costo": 8 },
-      { "nome": "THEO HERNANDEZ", "squadra": "Milan", "costo": 25 },
-      { "nome": "ZAPPACOSTA", "squadra": "Atalanta", "costo": 9 }
-    ],
-    "centrocampisti": [
-      { "nome": "ADLI", "squadra": "Fiorentina", "costo": 8 },
-      { "nome": "AMRABAT", "squadra": "Fenerbahce", "costo": 7 },
-      { "nome": "ANGUISSA", "squadra": "Napoli", "costo": 12 },
-      { "nome": "BARELLA", "squadra": "Internazionale", "costo": 20 },
-      { "nome": "BENNACER", "squadra": "Milan", "costo": 10 },
-      { "nome": "CALHANOGLU", "squadra": "Internazionale", "costo": 30 },
-      { "nome": "CHIESA", "squadra": "Juventus", "costo": 25 },
-      { "nome": "COLPANI", "squadra": "Fiorentina", "costo": 15 },
-      { "nome": "CRISTANTE", "squadra": "Roma", "costo": 9 },
-      { "nome": "DE KETELAERE", "squadra": "Atalanta", "costo": 26 },
-      { "nome": "DOUGLAS LUIZ", "squadra": "Juventus", "costo": 22 },
-      { "nome": "EDERSON", "squadra": "Atalanta", "costo": 15 },
-      { "nome": "FAGIOLI", "squadra": "Juventus", "costo": 10 },
-      { "nome": "FOLORUNSHO", "squadra": "Napoli", "costo": 8 },
-      { "nome": "FRATTESI", "squadra": "Internazionale", "costo": 16 },
-      { "nome": "GAETANO", "squadra": "Cagliari", "costo": 9 },
-      { "nome": "GUENDOUZI", "squadra": "Lazio", "costo": 13 },
-      { "nome": "GUDMUNDSSON", "squadra": "Fiorentina", "costo": 30 },
-      { "nome": "KONE", "squadra": "Roma", "costo": 11 },
-      { "nome": "LOFTUS-CHEEK", "squadra": "Milan", "costo": 18 },
-      { "nome": "MCKENNIE", "squadra": "Juventus", "costo": 12 },
-      { "nome": "MIRETTI", "squadra": "Genoa", "costo": 7 },
-      { "nome": "MKHITARYAN", "squadra": "Internazionale", "costo": 15 },
-      { "nome": "PELLEGRINI L.", "squadra": "Roma", "costo": 16 },
-      { "nome": "PULISIC", "squadra": "Milan", "costo": 28 },
-      { "nome": "RICCI S.", "squadra": "Torino", "costo": 8 },
-      { "nome": "SAMARDZIC", "squadra": "Atalanta", "costo": 14 },
-      { "nome": "VLASIC", "squadra": "Torino", "costo": 13 },
-      { "nome": "ZACCAGNI", "squadra": "Lazio", "costo": 22 },
-      { "nome": "ZIELINSKI", "squadra": "Internazionale", "costo": 14 }
-    ],
-    "attaccanti": [
-      { "nome": "ADAM", "squadra": "Torino", "costo": 15 },
-      { "nome": "ARNAUTOVIC", "squadra": "Internazionale", "costo": 14 },
-      { "nome": "ATAL", "squadra": "Al-Sadd", "costo": 5 },
-      { "nome": "CAMBIAGLI", "squadra": "Bologna", "costo": 10 },
-      { "nome": "CASTELLANOS", "squadra": "Lazio", "costo": 22 },
-      { "nome": "CHEDDIRA", "squadra": "Espanyol", "costo": 7 },
-      { "nome": "COLOMBO", "squadra": "Empoli", "costo": 8 },
-      { "nome": "DOVBYK", "squadra": "Roma", "costo": 35 },
-      { "nome": "DYBALA", "squadra": "Roma", "costo": 38 },
-      { "nome": "EXPOSITO", "squadra": "Genoa", "costo": 6 },
-      { "nome": "GIOVANE", "squadra": "Verona", "costo": 5 },
-      { "nome": "GONZALEZ N.", "squadra": "Juventus", "costo": 24 },
-      { "nome": "ISAKSEN", "squadra": "Lazio", "costo": 11 },
-      { "nome": "KEAN", "squadra": "Fiorentina", "costo": 18 },
-      { "nome": "KVARATSKHELIA", "squadra": "Napoli", "costo": 45 },
-      { "nome": "LAUTARO", "squadra": "Internazionale", "costo": 70 },
-      { "nome": "LEAO", "squadra": "Milan", "costo": 42 },
-      { "nome": "LUVUMBO", "squadra": "Cagliari", "costo": 9 },
-      { "nome": "LUCCA", "squadra": "Udinese", "costo": 12 },
-      { "nome": "LOOKMAN", "squadra": "Atalanta", "costo": 40 },
-      { "nome": "MILIK", "squadra": "Juventus", "costo": 12 },
-      { "nome": "MORATA", "squadra": "Milan", "costo": 30 },
-      { "nome": "NOSLIN", "squadra": "Lazio", "costo": 10 },
-      { "nome": "OKAFOR", "squadra": "Milan", "costo": 11 },
-      { "nome": "PAVLOVIC", "squadra": "Milan", "costo": 8 },
-      { "nome": "PISILLI", "squadra": "Roma", "costo": 6 },
-      { "nome": "POLITANO", "squadra": "Napoli", "costo": 15 },
-      { "nome": "RASPADORI", "squadra": "Napoli", "costo": 16 },
-      { "nome": "RETEGUI", "squadra": "Atalanta", "costo": 40 },
-      { "nome": "SANABRIA", "squadra": "Torino", "costo": 10 },
-      { "nome": "SCAMACCA", "squadra": "Atalanta", "costo": 32 },
-      { "nome": "SIMEONE", "squadra": "Napoli", "costo": 11 },
-      { "nome": "SOULE", "squadra": "Roma", "costo": 22 },
-      { "nome": "TAREMI", "squadra": "Internazionale", "costo": 18 },
-      { "nome": "THURAM", "squadra": "Internazionale", "costo": 50 },
-      { "nome": "VLAHOVIC", "squadra": "Juventus", "costo": 55 },
-      { "nome": "ZIRKZEE", "squadra": "Bologna", "costo": 35 }
-    ],
-    "allenatori": [
-      { "nome": "BARONI", "squadra": "Lazio", "costo": 8 },
-      { "nome": "CONTE", "squadra": "Napoli", "costo": 10 },
-      { "nome": "DE ZERBI", "squadra": "Olympique Marsiglia", "costo": 9 },
-      { "nome": "FONSECA", "squadra": "Milan", "costo": 8 },
-      { "nome": "GASPERINI", "squadra": "Atalanta", "costo": 10 },
-      { "nome": "GILARDINO", "squadra": "Genoa", "costo": 7 },
-      { "nome": "ITALIANO", "squadra": "Bologna", "costo": 9 },
-      { "nome": "INZAGHI", "squadra": "Internazionale", "costo": 12 },
-      { "nome": "MOTTA", "squadra": "Juventus", "costo": 10 },
-      { "nome": "PALLADINO", "squadra": "Fiorentina", "costo": 8 },
-      { "nome": "VANOLI", "squadra": "Torino", "costo": 7 }
-    ]
-  };
-
-  let dbGiocatori = {};
-  let listaNomiGiocatori = [];
-
-  function processaValutazioni(data) {
-    let arrayPiatto = [];
-    const mappatura = {
-      "portieri": "P",
-      "difensori": "D",
-      "centrocampisti": "C",
-      "attaccanti": "A",
-      "allenatori": "ALL"
-    };
-
-    for (let reparto in mappatura) {
-      if (data[reparto]) {
-        data[reparto].forEach(g => {
-          arrayPiatto.push({
-            nome: g.nome,
-            squadra: g.squadra,
-            ruolo: mappatura[reparto],
-            costo: g.costo
-          });
-        });
-      }
-    }
-    return arrayPiatto;
-  }
-
-  window.onload = function() {
-    let dataProcessata = processaValutazioni(datiListoneGrezzo);
-    dataProcessata.sort((a, b) => a.nome.localeCompare(b.nome));
-    listaNomiGiocatori = dataProcessata;
-
-    listaNomiGiocatori.forEach(g => {
-      dbGiocatori[g.nome.trim()] = { ruolo: g.ruolo, squadra: g.squadra };
-    });
-
-    caricaTabella();
-  }
-
-  function caricaTabella() {
-    const salvato = localStorage.getItem('fantacalcio_asta_dati');
-    const tbody = document.querySelector('#tabellaGiocatori tbody');
-    tbody.innerHTML = "";
-
-    if (salvato) {
-      try {
-        const righeSalvate = JSON.parse(salvato);
-        if (righeSalvate.length > 0) {
-          righeSalvate.forEach(r => {
-            creaRigaHtml(r.giocatore, r.ruolo, r.squadra, r.fascia, r.maxCrediti, r.minCrediti);
-          });
-        } else {
-          aggiungiRigaPreset();
-        }
-      } catch (e) {
-        aggiungiRigaPreset();
-      }
-    } else {
-      aggiungiRigaPreset();
-    }
-  }
-
-  function salvaDati(mostraMessaggio = false) {
-    const righe = document.querySelectorAll('#tabellaGiocatori tbody tr');
-    const datiDaSalvare = [];
-
-    righe.forEach(r => {
-      const selectGiocatore = r.querySelector('.select-giocatore');
-      const selectFascia = r.querySelector('.select-fascia');
-      const cols = r.querySelectorAll('td');
-
-      datiDaSalvare.push({
-        giocatore: selectGiocatore ? selectGiocatore.value : "",
-        ruolo: cols[1].innerText.trim(),
-        squadra: cols[2].innerText.trim(),
-        fascia: selectFascia ? selectFascia.value : "1",
-        maxCrediti: cols[4].innerText.trim(),
-        minCrediti: cols[5].innerText.trim()
-      });
-    });
-
-    localStorage.setItem('fantacalcio_asta_dati', JSON.stringify(datiDaSalvare));
-
-    if (mostraMessaggio) {
-      const msg = document.getElementById('messaggio');
-      msg.innerText = "Modifiche salvate con successo!";
-      setTimeout(() => { msg.innerText = ""; }, 3000);
-    }
-  }
-
-  function aggiungiRigaPreset() {
-    creaRigaHtml("", "", "", "1", "10", "1");
-    salvaDati();
-  }
-
-  function creaRigaHtml(nomeSelezionato = "", ruolo = "", squadra = "", fascia = "1", max = "10", min = "1") {
-    const tbody = document.querySelector('#tabellaGiocatori tbody');
-    const nuovaRiga = document.createElement('tr');
-    
-    nuovaRiga.innerHTML = `
-      <td>
-        <select class="select-giocatore" onchange="aggiornaDatiGiocatore(this)">
-        </select>
-      </td>
-      <td contenteditable="true" class="center ruolo-cell" oninput="salvaDati()">${ruolo}</td>
-      <td contenteditable="true" class="squadra-cell" oninput="salvaDati()">${squadra}</td>
-      <td class="center">
-        <select class="select-fascia" onchange="salvaDati()">
-          <option value="1" ${fascia === "1" ? "selected" : ""}>1</option>
-          <option value="2" ${fascia === "2" ? "selected" : ""}>2</option>
-          <option value="3" ${fascia === "3" ? "selected" : ""}>3</option>
-          <option value="4" ${fascia === "4" ? "selected" : ""}>4</option>
-        </select>
-      </td>
-      <td contenteditable="true" class="right" oninput="salvaDati()">${max}</td>
-      <td contenteditable="true" class="right" oninput="salvaDati()">${min}</td>
-      <td class="center"><button style="padding: 5px 10px; background-color: #c62828;" onclick="rimuoviRiga(this)">Elimina</button></td>
-    `;
-    tbody.appendChild(nuovaRiga);
-    
-    popolaSelectSingola(nuovaRiga.querySelector('.select-giocatore'), nomeSelezionato);
-  }
-
-  function popolaSelectSingola(selectElement, valoreSelezionato) {
-    const filtro = document.getElementById('inputRicerca') ? document.getElementById('inputRicerca').value.toUpperCase().trim() : "";
-    let optionsHtml = '<option value="">-- Seleziona Giocatore --</option>';
-
-    listaNomiGiocatori.forEach(g => {
-      const nomeMatch = g.nome.toUpperCase().includes(filtro);
-      const squadraMatch = g.squadra.toUpperCase().includes(filtro);
-      const eSelezionato = (g.nome === valoreSelezionato);
-
-      // Mostriamo l'opzione se rispetta il filtro di ricerca oppure se è il giocatore già selezionato in questa riga
-      if (filtro === "" || nomeMatch || squadraMatch || eSelezionato) {
-        let selected = eSelezionato ? 'selected' : '';
-        optionsHtml += `<option value="${g.nome}" ${selected}>${g.nome} (${g.squadra} - ${g.ruolo})</option>`;
-      }
-    });
-
-    selectElement.innerHTML = optionsHtml;
-  }
-
-  function aggiornaFiltroTende() {
-    const righe = document.querySelectorAll('#tabellaGiocatori tbody tr');
-    righe.forEach(riga => {
-      const selectGiocatore = riga.querySelector('.select-giocatore');
-      const valoreCorrente = selectGiocatore ? selectGiocatore.value : "";
-      popolaSelectSingola(selectGiocatore, valoreCorrente);
-    });
-  }
-
-  function rimuoviRiga(bottone) {
-    bottone.closest('tr').remove();
-    salvaDati();
-  }
-
-  function aggiornaDatiGiocatore(selectElement) {
-    const nomeScelto = selectElement.value;
-    const riga = selectElement.closest('tr');
-    const cellaRuolo = riga.querySelector('.ruolo-cell');
-    const cellaSquadra = riga.querySelector('.squadra-cell');
-
-    if (dbGiocatori[nomeScelto]) {
-      cellaRuolo.innerText = dbGiocatori[nomeScelto].ruolo;
-      cellaSquadra.innerText = dbGiocatori[nomeScelto].squadra;
-    } else {
-      cellaRuolo.innerText = "";
-      cellaSquadra.innerText = "";
-    }
-    salvaDati();
-  }
-
-  function esportaJson() {
-    const righe = document.querySelectorAll('#tabellaGiocatori tbody tr');
-    const dati = [];
-    righe.forEach(r => {
-      const selectGiocatore = r.querySelector('.select-giocatore');
-      const selectFascia = r.querySelector('.select-fascia');
-      const cols = r.querySelectorAll('td');
-      dati.push({
-        giocatore: selectGiocatore ? selectGiocatore.value : "",
-        ruolo: cols[1].innerText.trim(),
-        squadra: cols[2].innerText.trim(),
-        fascia: selectFascia ? selectFascia.value : "1",
-        maxCrediti: cols[4].innerText.trim(),
-        minCrediti: cols[5].innerText.trim()
-      });
-    });
-
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(dati, null, 2));
-    const downloadAnchor = document.createElement('a');
-    downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", "lista_fantacalcio.json");
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
-  }
-</script>
+                // Itera su tutti i calciatori presenti nel JSON
+                data.forEach(giocatore => {
+                    const tr = document.createElement('tr');
+                    
+                    tr.innerHTML = `
+                        <td>${giocatore.nome}</td>
+                        <td>${giocatore.squadra}</td>
+                        <td>${giocatore.costo}</td>
+                    `;
+                    
+                    tbody.appendChild(tr);
+                });
+            })
+            .catch(error => console.error('Errore:', error));
+    </script>
 
 </body>
 </html>
