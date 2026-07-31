@@ -38,13 +38,14 @@
   }
   .buttons-group {
     display: flex;
-    gap: 10px;
+    gap: 8px;
+    flex-wrap: wrap;
   }
   button {
     background-color: #2e7d32;
     color: white;
     border: none;
-    padding: 10px 18px;
+    padding: 10px 16px;
     font-size: 14px;
     border-radius: 6px;
     cursor: pointer;
@@ -128,6 +129,7 @@
   </div>
   <div class="buttons-group">
     <button onclick="salvaDati(true)">💾 Salva</button>
+    <button class="secondary" onclick="ordinaPerRuoloEFascia()">↕️ Ordina</button>
     <button class="secondary" onclick="aggiungiRigaPreset()">➕ Aggiungi</button>
     <button class="secondary" onclick="esportaJson()">📥 Esporta</button>
   </div>
@@ -170,7 +172,7 @@
         // Ordinamento alfabetico sicuro
         listaNomiGiocatori.sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
 
-        // Mappatura univoca dei calciatori (gestisce omonimi tipo Stankovic)
+        // Mappatura univoca dei calciatori (gestisce omonimi)
         listaNomiGiocatori.forEach((g, idx) => {
           if (g.nome) {
             const keyUnivoca = `${g.nome.trim()}|||${(g.squadra || '').trim()}|||${idx}`;
@@ -285,6 +287,70 @@
         msg.innerText = "Modifiche salvate con successo!";
         setTimeout(() => { msg.innerText = ""; }, 3000);
       }
+    }
+  }
+
+  function ordinaPerRuoloEFascia() {
+    const righe = Array.from(document.querySelectorAll('#tabellaGiocatori tbody tr'));
+    
+    const dati = righe.map(r => {
+      const selectGiocatore = r.querySelector('.select-giocatore');
+      const selectFascia = r.querySelector('.select-fascia');
+      const cols = r.querySelectorAll('td');
+
+      return {
+        giocatore: selectGiocatore ? selectGiocatore.value : "",
+        ruolo: cols[1] ? cols[1].innerText.trim() : "",
+        squadra: cols[2] ? cols[2].innerText.trim() : "",
+        fascia: selectFascia ? selectFascia.value : "1",
+        maxCrediti: cols[4] ? cols[4].innerText.trim() : "",
+        minCrediti: cols[5] ? cols[5].innerText.trim() : ""
+      };
+    });
+
+    const prioritaRuolo = {
+      'P': 1, 'PORTIERE': 1,
+      'D': 2, 'DIFENSORE': 2,
+      'C': 3, 'CENTROCAMPISTA': 3,
+      'A': 4, 'ATTACCANTE': 4,
+      'ALL': 5, 'ALLENATORE': 5
+    };
+
+    dati.sort((a, b) => {
+      // 1. Ordina per Ruolo (P -> D -> C -> A)
+      const rA = prioritaRuolo[(a.ruolo || '').toUpperCase()] || 99;
+      const rB = prioritaRuolo[(b.ruolo || '').toUpperCase()] || 99;
+      if (rA !== rB) return rA - rB;
+      
+      // 2. Ordina per Fascia (1 -> 2 -> 3 -> 4)
+      const fA = parseInt(a.fascia) || 99;
+      const fB = parseInt(b.fascia) || 99;
+      if (fA !== fB) return fA - fB;
+
+      // 3. Ordina per Max Crediti (Decrescente)
+      const maxA = parseFloat(a.maxCrediti) || 0;
+      const maxB = parseFloat(b.maxCrediti) || 0;
+      if (maxB !== maxA) return maxB - maxA;
+
+      return (a.giocatore || '').localeCompare(b.giocatore || '');
+    });
+
+    const tbody = document.querySelector('#tabellaGiocatori tbody');
+    if (!tbody) return;
+    tbody.innerHTML = "";
+
+    dati.forEach(r => {
+      creaRigaHtml(r.giocatore, r.ruolo, r.squadra, r.fascia, r.maxCrediti, r.minCrediti);
+    });
+
+    aggiornaFiltroTende();
+    salvaDati();
+
+    const msg = document.getElementById('messaggio');
+    if (msg) {
+      msg.style.color = '#2e7d32';
+      msg.innerText = "Tabella ordinata per Ruolo (P ➔ D ➔ C ➔ A) e Fascia!";
+      setTimeout(() => { msg.innerText = ""; }, 3000);
     }
   }
 
