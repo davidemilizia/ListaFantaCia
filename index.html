@@ -125,7 +125,7 @@
   </tbody>
 </table>
 
-<!-- Datalist popolata dinamicamente da internet -->
+<!-- Datalist popolata dinamicamente dal file json -->
 <datalist id="lista-giocatori"></datalist>
 
 <div id="messaggio"></div>
@@ -133,14 +133,15 @@
 <script>
   let dbGiocatori = {};
 
-  // Al caricamento, scarica il listone da GitHub e poi ripristina i dati salvati
+  // Al caricamento, scarica il listone da GitHub e riempie la datalist
   window.onload = function() {
     fetch('listone.json')
       .then(response => response.json())
       .then(data => {
         const datalist = document.getElementById('lista-giocatori');
         data.forEach(g => {
-          dbGiocatori[g.nome] = { ruolo: g.ruolo, squadra: g.squadra };
+          // Salviamo i dati indicizzando per nome (maiuscoletto/normalizzato per sicurezza)
+          dbGiocatori[g.nome.trim()] = { ruolo: g.ruolo, squadra: g.squadra };
           
           const option = document.createElement('option');
           option.value = g.nome;
@@ -152,7 +153,7 @@
       .catch(error => {
         console.error("Errore nel caricamento del listone:", error);
         document.getElementById('messaggio').style.color = "red";
-        document.getElementById('messaggio').innerText = "Impossibile caricare il listone.json da GitHub!";
+        document.getElementById('messaggio').innerText = "Impossibile caricare il file listone.json da GitHub!";
         caricaTabella();
       });
   }
@@ -181,7 +182,7 @@
     const nuovaRiga = document.createElement('tr');
     
     nuovaRiga.innerHTML = `
-      <td><input type="text" class="input-giocatore" list="lista-giocatori" value="${nome}" placeholder="Digita nome..."></td>
+      <td><input type="text" class="input-giocatore" list="lista-giocatori" value="${nome}" placeholder="Digita o seleziona..."></td>
       <td contenteditable="true" class="center ruolo-cell">${ruolo}</td>
       <td contenteditable="true" class="squadra-cell">${squadra}</td>
       <td class="center">
@@ -210,7 +211,11 @@
     const inputs = document.querySelectorAll('.input-giocatore');
     inputs.forEach(input => {
       input.removeEventListener('input', gestisciAutocompletamento);
+      input.removeEventListener('change', gestisciAutocompletamento);
+      
+      // Ascoltiamo sia l'input che il change per catturare subito la selezione dal menu a tendina
       input.addEventListener('input', gestisciAutocompletamento);
+      input.addEventListener('change', gestisciAutocompletamento);
     });
   }
 
