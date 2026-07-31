@@ -63,12 +63,14 @@
   tr:hover {
     background-color: #f1f8e9;
   }
-  input.input-giocatore {
+  select.select-giocatore {
     width: 100%;
     padding: 6px;
     font-size: 14px;
     border: 1px solid #ccc;
     border-radius: 4px;
+    background-color: white;
+    cursor: pointer;
   }
   select.select-fascia {
     padding: 6px;
@@ -125,27 +127,23 @@
   </tbody>
 </table>
 
-<!-- Datalist popolata dinamicamente dal file json -->
-<datalist id="lista-giocatori"></datalist>
-
 <div id="messaggio"></div>
 
 <script>
   let dbGiocatori = {};
+  let listaNomiGiocatori = [];
 
-  // Al caricamento, scarica il listone da GitHub e riempie la datalist
+  // Al caricamento, scarica il listone da GitHub
   window.onload = function() {
     fetch('listone.json')
       .then(response => response.json())
       .then(data => {
-        const datalist = document.getElementById('lista-giocatori');
+        // Ordina i giocatori in ordine alfabetico per nome
+        data.sort((a, b) => a.nome.localeCompare(b.nome));
+        listaNomiGiocatori = data;
+
         data.forEach(g => {
-          // Salviamo i dati indicizzando per nome (maiuscoletto/normalizzato per sicurezza)
           dbGiocatori[g.nome.trim()] = { ruolo: g.ruolo, squadra: g.squadra };
-          
-          const option = document.createElement('option');
-          option.value = g.nome;
-          datalist.appendChild(option);
         });
 
         caricaTabella();
@@ -162,7 +160,8 @@
     const salvato = localStorage.getItem('fantacalcio_asta');
     if (salvato) {
       document.querySelector('#tabellaGiocatori tbody').innerHTML = salvato;
-      attivaAutocompletamento();
+      // Ripristina gli eventi sui menu a tendina caricati dal localStorage
+      attivaEventiSelect();
     } else {
       aggiungiRiga("Lautaro Martinez", "A", "Inter", "1", "120", "100");
     }
@@ -177,12 +176,23 @@
     setTimeout(() => { msg.innerText = ""; }, 3000);
   }
 
-  function aggiungiRiga(nome = "", ruolo = "", squadra = "", fascia = "1", max = "10", min = "1") {
+  function aggiungiRiga(nomeSelezionato = "", ruolo = "", squadra = "", fascia = "1", max = "10", min = "1") {
     const tbody = document.querySelector('#tabellaGiocatori tbody');
     const nuovaRiga = document.createElement('tr');
     
+    // Costruisce le opzioni del menu a tendina con tutti i giocatori del listone
+    let optionsHtml = '<option value="">-- Seleziona Giocatore --</option>';
+    listaNomiGiocatori.forEach(g => {
+      let selected = (g.nome === nomeSelezionato) ? 'selected' : '';
+      optionsHtml += `<option value="${g.nome}" ${selected}>${g.nome} (${g.squadra} - ${g.ruolo})</option>`;
+    });
+
     nuovaRiga.innerHTML = `
-      <td><input type="text" class="input-giocatore" list="lista-giocatori" value="${nome}" placeholder="Digita o seleziona..."></td>
+      <td>
+        <select class="select-giocatore" onchange="aggiornaDatiGiocatore(this)">
+          ${optionsHtml}
+        </select>
+      </td>
       <td contenteditable="true" class="center ruolo-cell">${ruolo}</td>
       <td contenteditable="true" class="squadra-cell">${squadra}</td>
       <td class="center">
@@ -198,7 +208,6 @@
       <td class="center"><button style="padding: 5px 10px; background-color: #c62828;" onclick="rimuoviRiga(this)">Elimina</button></td>
     `;
     tbody.appendChild(nuovaRiga);
-    attivaAutocompletamento();
   }
 
   function rimuoviRiga(bottone) {
@@ -207,40 +216,38 @@
     salvaDati();
   }
 
-  function attivaAutocompletamento() {
-    const inputs = document.querySelectorAll('.input-giocatore');
-    inputs.forEach(input => {
-      input.removeEventListener('input', gestisciAutocompletamento);
-      input.removeEventListener('change', gestisciAutocompletamento);
-      
-      // Ascoltiamo sia l'input che il change per catturare subito la selezione dal menu a tendina
-      input.addEventListener('input', gestisciAutocompletamento);
-      input.addEventListener('change', gestisciAutocompletamento);
-    });
-  }
-
-  function gestisciAutocompletamento(e) {
-    const input = e.target;
-    const nomeInserito = input.value.trim();
-    const riga = input.closest('tr');
+  function aggiornaDatiGiocatore(selectElement) {
+    const nomeScelto = selectElement.value;
+    const riga = selectElement.closest('tr');
     const cellaRuolo = riga.querySelector('.ruolo-cell');
     const cellaSquadra = riga.querySelector('.squadra-cell');
 
-    if (dbGiocatori[nomeInserito]) {
-      cellaRuolo.innerText = dbGiocatori[nomeInserito].ruolo;
-      cellaSquadra.innerText = dbGiocatori[nomeInserito].squadra;
+    if (dbGiocatori[nomeScelto]) {
+      cellaRuolo.innerText = dbGiocatori[nomeScelto].ruolo;
+      cellaSquadra.innerText = dbGiocatori[nomeScelto].squadra;
+    } else {
+      cellaRuolo.innerText = "";
+      cellaSquadra.innerText = "";
     }
+  }
+
+  function attivaEventiSelect() {
+    // Utile se ricarica dal localStorage per riagganciare la logica se necessario
+    const selects = document.querySelectorAll('.select-giocatore');
+    selects.forEach(sel => {
+      sel.onchange = function() { aggiornaDatiGiocatore(this); };
+    });
   }
 
   function esportaJson() {
     const righe = document.querySelectorAll('#tabellaGiocatori tbody tr');
     const dati = [];
     righe.forEach(r => {
-      const inputGiocatore = r.querySelector('.input-giocatore');
+      const selectGiocatore = r.querySelector('.select-giocatore');
       const selectFascia = r.querySelector('.select-fascia');
       const cols = r.querySelectorAll('td');
       dati.push({
-        giocatore: inputGiocatore ? inputGiocatore.value.trim() : "",
+        giocatore: selectGiocatore ? selectGiocatore.value : "",
         ruolo: cols[1].innerText.trim(),
         squadra: cols[2].innerText.trim(),
         fascia: selectFascia ? selectFascia.value : "1",
